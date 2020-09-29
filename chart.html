@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+    <!-- <script src="https://app.dineandgift.com/plugins/daterangepicker/daterangepicker.js"></script> -->
+    <!-- <link rel="stylesheet" href="https://app.dineandgift.com/plugins/daterangepicker/daterangepicker.css"></link> -->
+<head>
+    <title>Neno Nego Veio</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.16.0/moment.min.js"></script>
+    <script src="moment-locale.js"></script>
+    <script src="datatables.min.js"></script>
+    <script src="daterangepicker.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"></link>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-daterangepicker/2.1.27/daterangepicker.css"></link>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
+    </link>
+
+</head>
+
+<body>
+    <script>
+        function listener() {
+            var f = [], c = [], d = [];
+            JSON.parse(this.responseText).forEach((v, k) => {
+                for (let i = 0; i < Object.keys(v).length; i++) {
+                    if (v[Object.keys(v)[i]].direction == "outbound") {
+                        d = f.concat([v[Object.keys(v)[i]].prjid, `${v[Object.keys(v)[i]].date.split(' ')[0].split('-')[0]}-${v[Object.keys(v)[i]].date.split(' ')[0].split('-')[1].substring(0, 1) == 0 ? v[Object.keys(v)[i]].date.split(' ')[0].split('-')[1].substring(1, 2) : v[Object.keys(v)[i]].date.split(' ')[0].split('-')[1]}-${v[Object.keys(v)[i]].date.split(' ')[0].split('-')[2]}`, v[Object.keys(v)[i]].data.context.replace('action.', ''), v[Object.keys(v)[i]].platform, v[Object.keys(v)[i]].data.user_text])
+                    }
+                    if (d.length != 0) { c = c.concat([d]); }
+                }
+            });
+
+            $(document).ready(function () {
+                $(function () {
+                    var year = moment().format('YYYY'), start = moment(`${year}-01-01`), end = moment(`${year}-12-31`);
+
+                    function cb(start, end) {
+                        $('#reportrange span').html(`${start.locale('pt').format('D MMMM, YYYY').toUpperCase()} || ${end.locale('pt').format('D MMMM, YYYY').toUpperCase()}`);
+                    }
+
+                    $('#reportrange').daterangepicker({
+                        startDate: start, endDate: end,
+                        ranges: {
+                            'Hoje': [moment(), moment()],
+                            'Ontem': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                            'Últimos 7 dias': [moment().subtract(6, 'days'), moment()],
+                            'Últimos 30 dias': [moment().subtract(29, 'days'), moment()],
+                            'Este mês': [moment().startOf('month'), moment().endOf('month')],
+                            'Último mês': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                        }
+                    }, cb); cb(start, end);
+                });
+
+
+                $('#reportrange').on('apply.daterangepicker', function (ev, picker) {
+                    var start = picker.startDate, end = picker.endDate;
+
+                    $.fn.dataTable.ext.search.push(
+                        function (settings, data, dataIndex) {
+                            var min = start, max = end, startDate = new Date(data[1]);
+
+                            if (min == null && max == null) { return true; }
+                            if (min == null && startDate <= max) { return true; }
+                            if (max == null && startDate >= min) { return true; }
+                            if (startDate <= max && startDate >= min) { return true; }
+                            return false;
+                        }
+                    );
+                    table.draw();
+                    $.fn.dataTable.ext.search.pop();
+                });
+
+                var table = $('#example').DataTable({
+                    "order": [[0, "desc"]], lengthChange: false, data: c,
+                    columns: [
+                        { title: "PROJETO ID" },
+                        { title: "DATA INTERAÇÃO" },
+                        { title: "INTENT" },
+                        { title: "PLATAFORMA" },
+                        { title: "TEXTO" }
+                    ]
+                });
+            });
+        };
+
+        var oReq = new XMLHttpRequest();
+        oReq.onload = listener;
+        oReq.open("get", 'https://us-central1-primeflow.cloudfunctions.net/gettimeline', true);
+        oReq.send();
+    </script>
+    <div class="container">
+        <br>
+        <hr>
+        <div id="reportrange" class="btn btn-default">
+            <span></span> <b class="caret"></b>
+        </div>
+        <table id="example" class="table table-striped" cellspacing="0" width="100%"></table>
+        <hr>
+        <br>
+    </div>
+</body>
+
+</html>
